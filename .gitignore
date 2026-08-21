@@ -1,0 +1,32 @@
+# ── SECRETOS ───────────────────────────────────────────────────────────────
+# El .env lleva la contraseña del campus. .auth/ es la sesión de Playwright ya
+# autenticada: quien tiene ese archivo entra como vos, sin contraseña.
+# Nunca versionar. Si alguno se comiteó por error, ROTÁ la contraseña además de borrarlo.
+.env
+.env.*
+!.env.example
+.auth/
+.auth
+
+# ── DEPENDENCIAS ───────────────────────────────────────────────────────────
+node_modules/
+
+# ── DATOS DE PERSONAS ──────────────────────────────────────────────────────
+# OJO CON EL ANCLAJE. Un patrón que contiene una barra queda ANCLADO a la carpeta
+# del .gitignore: "datos/x.json" NO matchea "scripts/datos/x.json". El "**/" es lo
+# que lo hace valer en cualquier subcarpeta. Esto ya pasó en el repo tupad (ago-2026):
+# un datos.json con conversaciones privadas de alumnos se versionó una semana entera.
+# Acá los aspirantes son MENORES en muchos casos. No repetir el error.
+**/datos/*.json
+!**/datos/*.example.json
+**/evidencia/
+**/*-alumnos.json
+**/*-mensajes.json
+
+# ── RUIDO ──────────────────────────────────────────────────────────────────
+*.log
+*.png
+Thumbs.db
+desktop.ini
+*.tmp
+~$*
