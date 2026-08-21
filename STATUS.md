@@ -59,6 +59,9 @@ no inventados:
 
 | Fecha | Qué | Criticidad | Estado |
 | --- | --- | :-: | :-: |
+| 2026-08-21 | **16 entregas sin calificar** en el aula 589 (11 en U1, 2 en U2, 2 en U3, 1 en U4). Hay cola de corrección esperando. | alta | **abierto** |
+| 2026-08-21 | **Embudo de participación muy marcado**: de 165 estudiantes, entregaron 15 en U1, 6 en U2, 4 en U3, 2 en U4, 0 en U5. Sin verificar si es deserción o si la cohorte recién arranca. | alta | **abierto** |
+| 2026-08-21 | Ninguna de las 7 `assign` mostró fila "Fecha de entrega" en su resumen — posible falta de fechas límite configuradas. Verificar en la config de cada tarea. | media | **abierto** |
 | 2026-08-21 | `_probar-dom.js` volcó ~174 mails de aspirantes por indexar columnas por posición. Archivo purgado, script corregido, reglas escritas en `CLAUDE.md`. | alta | resuelto |
 | 2026-08-21 | El bug de reintentos de login sigue vivo en `tupad/coordinacion/prog-4/_carga/_campus.js`, de donde se copió el patrón. Reintenta credenciales inválidas y acerca el bloqueo de cuenta. | media | **abierto** |
 | 2026-08-21 | Sección `Encuentros Sincrónicos` del aula 589 está VACÍA. Sin verificar si es intencional. | baja | **abierto** |
