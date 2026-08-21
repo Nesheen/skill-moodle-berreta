@@ -8,7 +8,9 @@
 Celda **operativa**. Entra al campus, reconoció el aula y tiene el mapa completo de
 actividades con sus `cmid`. Falta escribir las herramientas de uso diario.
 
-- Aula: **CVI 589 — Pre TUP 2027 - Marzo**, 174 participantes.
+- Aula: **CVI 589 — Pre TUP 2027 - Marzo**, 174 participantes (165 estudiantes).
+- **La cohorte arrancó el 19-ago-2026.** Dato clave para leer cualquier número de
+  participación: al 21-ago llevaba DOS días. Sin esta fecha, las curvas engañan.
 - Mi rol: **Profesor sin permiso de edición** (puedo ver y calificar, NO editar el aula).
 - Acceso: **login manual** (`node scripts/login-manual.js`). La sesión vive en
   `.auth/cvi-state.json` y vence tras unas horas de inactividad.
@@ -29,6 +31,24 @@ node scripts/login-manual.js    # si la sesión venció (los scripts avisan)
 | `login.js` | login automático (necesita clave en .env) | ⚠ sin uso |
 | `explorar.js` | descubre cursos, rol y bandeja | ✅ probado |
 | `_probar-dom.js` | sonda fina del aula + anatomía de mensajería | ✅ probado |
+| `entregas-tarea.js` | resumen de las 7 assign: enviados / sin calificar | ✅ probado |
+| `pendientes-corregir.js` | cola de corrección con nombre y link al calificador | ✅ probado |
+
+### Gotchas de la grilla de calificación (todos verificados a los golpes)
+
+Están comentados en `pendientes-corregir.js`, pero conviene tenerlos acá:
+
+- `perpage=N` **no** agranda la grilla: Moodle la maneja por preferencia de usuario.
+  Hay que paginar con `&page=N`.
+- **Quedarse sin tabla NO es un error**, es el final de la paginación. Tratarlo como
+  falla hacía descartar todo lo ya juntado ("no pude leer la grilla" tras leer 8 páginas bien).
+- `filter=require_grading` **no es válido** y, peor, Moodle lo **guarda como preferencia**:
+  deja la grilla vacía en todas las visitas siguientes. Por eso se manda `filter=` vacío.
+- La nota es una **escala** ("Supera lo esperado"), no un número. Lo pendiente se deduce
+  de la columna **Estado**, no de la de Calificación.
+- Nunca `.catch(() => {})` en un `goto`: un error tragado se disfraza de dato.
+- Columnas: `c2` Nombre · `c5` Estado · `c6` Calificación.
+  ⛔ `c3` es **DNI** y `c4` es **email**: no se leen nunca.
 
 ## Lo que falta — próximos pasos
 
@@ -59,9 +79,10 @@ no inventados:
 
 | Fecha | Qué | Criticidad | Estado |
 | --- | --- | :-: | :-: |
-| 2026-08-21 | **16 entregas sin calificar** en el aula 589 (11 en U1, 2 en U2, 2 en U3, 1 en U4). Hay cola de corrección esperando. | alta | **abierto** |
-| 2026-08-21 | **Embudo de participación muy marcado**: de 165 estudiantes, entregaron 15 en U1, 6 en U2, 4 en U3, 2 en U4, 0 en U5. Sin verificar si es deserción o si la cohorte recién arranca. | alta | **abierto** |
-| 2026-08-21 | Ninguna de las 7 `assign` mostró fila "Fecha de entrega" en su resumen — posible falta de fechas límite configuradas. Verificar en la config de cada tarea. | media | **abierto** |
+| 2026-08-21 | **15 entregas sin calificar** (10 en U1, 2 en U2, 2 en U3, 1 en U4), con nombre y link en `datos/pendientes-corregir.json`. El resumen de Moodle dice 16: la de diferencia es probablemente un "Calificado - vuelto a entregar", que el filtro por Estado no cuenta. Sin confirmar. | alta | **abierto** |
+| 2026-08-21 | **Un aspirante (userid 20670) tiene entregas de JULIO 2026 sin calificar en U1, U2, U3 y U4** — anteriores al inicio de la cohorte (19-ago). Parece arrastre de una cohorte previa o un caso adelantado. Verificar si corresponde corregirlas. | media | **abierto** |
+| 2026-08-21 | ~~Embudo de participación~~ **DESCARTADO el 2026-08-21.** La cohorte arrancó el **19-ago-2026**: al segundo día, 15 entregas de 165 en U1 es el pelotón de ansiosos, no deserción. Lección: no interpretar una curva de participación sin saber la fecha de inicio. | — | descartado |
+| 2026-08-21 | Ninguna de las 7 `assign` mostró fila "Fecha de entrega" en su resumen — posible falta de fechas límite configuradas. Con la cohorte recién arrancada esto pesa MÁS: sin fecha no hay urgencia, y sin urgencia los chicos derivan. Verificar en la config de cada tarea. | media | **abierto** |
 | 2026-08-21 | `_probar-dom.js` volcó ~174 mails de aspirantes por indexar columnas por posición. Archivo purgado, script corregido, reglas escritas en `CLAUDE.md`. | alta | resuelto |
 | 2026-08-21 | El bug de reintentos de login sigue vivo en `tupad/coordinacion/prog-4/_carga/_campus.js`, de donde se copió el patrón. Reintenta credenciales inválidas y acerca el bloqueo de cuenta. | media | **abierto** |
 | 2026-08-21 | Sección `Encuentros Sincrónicos` del aula 589 está VACÍA. Sin verificar si es intencional. | baja | **abierto** |
