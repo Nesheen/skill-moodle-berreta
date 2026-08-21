@@ -86,17 +86,16 @@ node scripts/login-manual.js      # abre el navegador, logueás vos, guarda la s
 
 **`CVI_PASSWORD` está VACÍA a propósito.** Descubierto el 2026-08-21:
 `campusingresantes` es un Moodle **separado** de `campusvirtual.frm` — otra base de
-usuarios. La credencial `45964927` es válida en `campusvirtual.frm` pero **no** acá,
-así que dejarla en el `.env` sólo servía para quemar intentos hacia el bloqueo de
-cuenta (Moodle bloquea a los ~10 fallidos).
+usuarios. La credencial de `campusvirtual.frm` (el usuario vive en el `.env`, no acá)
+es válida allá pero **no** en este campus, así que dejarla en el `.env` sólo servía
+para quemar intentos hacia el bloqueo de cuenta (Moodle bloquea a los ~10 fallidos).
 
 El camino manual además es mejor: la contraseña no queda en ningún archivo de la
 celda, y sigue funcionando si el campus mete captcha o doble factor. Sólo se persiste
 la cookie en `.auth/cvi-state.json`, que está en `.gitignore`.
 
 La sesión vence (unas horas de inactividad). Cuando eso pase, los scripts avisan y se
-vuelve a correr `login-manual.js`. Verificado funcionando el 2026-08-21 como
-**Neyén Bianchi Medina**.
+vuelve a correr `login-manual.js`. Verificado funcionando el 2026-08-21.
 
 ### Cursos / aulas
 
