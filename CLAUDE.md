@@ -25,6 +25,22 @@ Es la diferencia más importante contra las celdas de TUPAD, y cambia cómo se m
 - En informes: iniciales o id de Moodle, no nombre completo, salvo que yo pida lo contrario.
 - Nada de mensajes masivos sin que yo lea el texto antes.
 
+### 🔴 Incidente 2026-08-21 — regla que nació de un error real
+
+La primera versión de `_probar-dom.js` volcó **~174 direcciones de mail de aspirantes**
+a la terminal y a `datos/dom-sonda.json`. Causa: indexó la columna de la tabla de
+participantes por POSICIÓN (`td.c3`), asumiendo que era "Roles"; en este campus `c3` es
+**Email**. El archivo se purgó el mismo día.
+
+**Reglas que quedan de eso, y que valen para todo script nuevo de esta celda:**
+
+1. **Nunca indexar columnas por posición.** Buscar la columna por su encabezado y
+   alinear por la clase `cN` que Moodle repite en `th` y `td`.
+2. **Lista blanca al recolectar.** Si un valor parece un identificador personal
+   (tiene `@`, o 6+ dígitos seguidos), se descarta aunque el selector lo haya traído.
+3. **Contar, no listar.** Para diagnóstico alcanza con "19 estudiantes"; no hace falta
+   saber quiénes. Las identidades se leen sólo cuando la tarea concreta las necesita.
+
 ## Requisitos técnicos / Entorno
 
 > Esta celda AUTOMATIZA el login y la navegación en el campus con un navegador manejado
@@ -59,20 +75,92 @@ Para saber de verdad, mirá `enablemobilewebservice` en `tool_mobile_get_public_
 
 - URL: https://campusingresantes.frm.utn.edu.ar/login/index.php
 - Nombre del sitio: **Campus Ingresantes** (título de página: `CVI`)
-- Usuario: **SIN DATO — completar en `.env` → `CVI_USER`**
-- Contraseña: `.env` → `CVI_PASSWORD`
 - Login por formulario: `#username` / `#password` / `#loginbtn`
   (verificado 2026-08-21: mismos ids que el resto de los campus UTN).
 
+### 🔑 Cómo se entra: login MANUAL, no contraseña guardada
+
+```bash
+node scripts/login-manual.js      # abre el navegador, logueás vos, guarda la sesión
+```
+
+**`CVI_PASSWORD` está VACÍA a propósito.** Descubierto el 2026-08-21:
+`campusingresantes` es un Moodle **separado** de `campusvirtual.frm` — otra base de
+usuarios. La credencial `45964927` es válida en `campusvirtual.frm` pero **no** acá,
+así que dejarla en el `.env` sólo servía para quemar intentos hacia el bloqueo de
+cuenta (Moodle bloquea a los ~10 fallidos).
+
+El camino manual además es mejor: la contraseña no queda en ningún archivo de la
+celda, y sigue funcionando si el campus mete captcha o doble factor. Sólo se persiste
+la cookie en `.auth/cvi-state.json`, que está en `.gitignore`.
+
+La sesión vence (unas horas de inactividad). Cuando eso pase, los scripts avisan y se
+vuelve a correr `login-manual.js`. Verificado funcionando el 2026-08-21 como
+**Neyén Bianchi Medina**.
+
 ### Cursos / aulas
 
-**SIN DATO todavía.** Se completan corriendo `node scripts/explorar.js`, que descubre
-los cursos visibles, el rol en cada uno y los ids reales. Cuando estén, se cargan acá
-y en `CONOCIDAS` de `scripts/_campus.js`.
+Relevado el **2026-08-21** con `scripts/explorar.js` (fuente: `datos/exploracion.json`).
 
-| Materia / aula | course_id | Mi rol |
-| --- | :-: | --- |
-| _(pendiente de exploración)_ | — | — |
+| Aula | course_id | Mi rol | Contenido visto |
+| --- | :-: | --- | --- |
+| **Pre TUP 2027 - Marzo** | **589** | docente | 2 tareas · 0 cuestionarios · 3 foros |
+
+- Es el **único** curso visible para mi usuario en este campus.
+- Ojo con el nombre: es el pre de la **TUPAD**, pero vive en el campus de **ingresantes
+  de FRM**. Que diga "TUP" no lo convierte en el campus `tup.sied` — son sitios distintos
+  y no comparten ni cuentas ni sesión.
+- URL: https://campusingresantes.frm.utn.edu.ar/course/view.php?id=589
+- **174 participantes** (dato declarado por Moodle, 20 por página).
+
+### ⚠ Mi rol es "Profesor sin permiso de edición"
+
+Relevado el 2026-08-21. **No puedo modificar el aula aunque quisiera**: no hay permiso de
+edición sobre actividades ni recursos. Lo que sí puedo: ver todo, ver entregas, calificar
+y usar los foros y la mensajería.
+
+Esto encaja con el modo de trabajo de la celda (lectura por defecto), pero hay que tenerlo
+presente: si una auditoría detecta algo mal armado, la salida es **reportarlo**, no
+arreglarlo. No hay opción de arreglarlo.
+
+### Estructura del aula 589 (relevada 2026-08-21)
+
+Detalle completo con todos los `cmid` en `datos/dom-sonda.json`.
+
+**5 unidades**, cada una con el mismo molde:
+
+| # | Unidad | Foro de consultas |
+| - | --- | :-: |
+| 1 | Estructuras Secuenciales | 4841 |
+| 2 | Estructuras Condicionales | 4842 |
+| 3 | Estructuras Repetitivas | 4843 |
+| 4 | Listas | 4844 |
+| 5 | Funciones | 4742 |
+
+Molde por unidad: `Actividades` (apuntes/ipynb + 3-4 cuestionarios) → `Práctica` (TP +
+**entrega `assign`** + resolución + repaso) → `Microteaching` (video + PDF + ejercicios)
+→ `Autoevaluación` (cuestionario) → `Encuesta de cierre` (feedback).
+
+**Las entregas que se corrigen** (`assign`), que es el corazón del laburo:
+
+| Unidad | Actividad de cierre | cmid |
+| :-: | --- | :-: |
+| 1 | Estructuras Secuenciales | **4660** |
+| 2 | Estructuras Condicionales | **4688** |
+| 3 | Estructuras Repetitivas | **4712** |
+| 4 | Listas | **4734** |
+| 5 | Funciones | **4755** |
+| — | **Entrega Examen de Ingreso** | **4765** |
+| — | Extensión Ejercicio Nivelatorio | **4764** |
+
+Secciones generales: `PREUNIVERSITARIO - General` (avisos 4840, punto de partida 4839,
+encuesta inicial 4639, normas de foros 4644), `Evaluaciones` (consigna 4762, foro de
+consultas 4763), `Entrenamiento`, `Encuentros Sincrónicos` (vacía) y `Tutor Socrático`
+(foro 4845).
+
+💡 **Ojo al dato:** el molde es prácticamente el mismo que el del "patrón de oro" de
+Programación 1 de TUPAD (unidad → PDF → cuestionario → práctica → autoevaluación →
+encuesta de cierre → foro). Si alguna vez hay que auditar esta aula, la vara ya existe.
 
 **Regla dura: nunca escribir "el aula" a secas. Siempre campus + course_id.**
 Es la lección que costó dos accidentes en la celda prog-4 por valores clavados.
@@ -94,7 +182,8 @@ Es la lección que costó dos accidentes en la celda prog-4 por valores clavados
 Los scripts leen el `.env` solos (via `dotenv`). No hace falta puente de variables:
 
 ```bash
-node scripts/login.js          # valida credenciales y guarda la sesión
+node scripts/login-manual.js   # ← EL QUE SE USA: logueás vos, guarda la sesión
+node scripts/login.js          # login automático (sólo si algún día hay clave en .env)
 node scripts/explorar.js       # reconocimiento: cursos, rol, bandeja
 node scripts/<x>.js --ver      # cualquiera, con navegador visible para depurar
 ```
@@ -118,9 +207,10 @@ frm/pre/
 ├── .env.example       ← plantilla del .env
 ├── package.json       ← Playwright + dotenv
 ├── scripts/
-│   ├── _campus.js     ← motor: destino, login, sesión, capturas
-│   ├── login.js       ← valida credenciales
-│   └── explorar.js    ← reconocimiento del campus (SOLO LECTURA)
+│   ├── _campus.js        ← motor: destino, login, sesión, capturas
+│   ├── login-manual.js   ← ENTRADA HABITUAL: logueás vos, persiste la cookie
+│   ├── login.js          ← login automático (requiere clave en .env)
+│   └── explorar.js       ← reconocimiento del campus (SOLO LECTURA)
 ├── datos/             ← JSON de trabajo (NO versionar: datos de menores)
 ├── evidencia/         ← capturas AAAA-MM-DD_<tema>.png (NO versionar)
 └── informes/          ← informes .md / .pdf

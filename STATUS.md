@@ -5,56 +5,60 @@
 
 ## Dónde estamos
 
-Celda **recién creada**. El andamiaje está listo y las dependencias instaladas, pero
-**todavía no entró al campus ni una sola vez**: faltan las credenciales.
+Celda **operativa**. Entra al campus, reconoció el aula y tiene el mapa completo de
+actividades con sus `cmid`. Falta escribir las herramientas de uso diario.
 
-## ⛔ Bloqueante — lo único que frena todo
+- Aula: **CVI 589 — Pre TUP 2027 - Marzo**, 174 participantes.
+- Mi rol: **Profesor sin permiso de edición** (puedo ver y calificar, NO editar el aula).
+- Acceso: **login manual** (`node scripts/login-manual.js`). La sesión vive en
+  `.auth/cvi-state.json` y vence tras unas horas de inactividad.
 
-**Falta el `.env` con el usuario y la contraseña del Campus Ingresantes.**
+## Cómo arrancar una sesión
 
 ```bash
-cp .env.example .env
-# y completar CVI_USER y CVI_PASSWORD
+cd C:/Users/LENOVO/Documents/trabajo/frm/pre
+node scripts/login-manual.js    # si la sesión venció (los scripts avisan)
 ```
 
-Sin eso no corre nada. El `.env` no se versiona (está en `.gitignore`).
+## Lo que ya funciona
 
-## Próximos pasos, en orden
+| Script | Qué hace | Estado |
+| --- | --- | :-: |
+| `_campus.js` | motor: destino, login, sesión, capturas | ✅ |
+| `login-manual.js` | logueás vos, persiste la cookie | ✅ probado |
+| `login.js` | login automático (necesita clave en .env) | ⚠ sin uso |
+| `explorar.js` | descubre cursos, rol y bandeja | ✅ probado |
+| `_probar-dom.js` | sonda fina del aula + anatomía de mensajería | ✅ probado |
 
-1. **Completar el `.env`** (ver arriba).
-2. **`node scripts/login.js`** — valida credenciales y guarda la sesión en `.auth/`.
-   Si esto falla, no seguir: el problema es de credenciales o de acceso, no de código.
-3. **`node scripts/explorar.js`** — reconocimiento. Deja `datos/exploracion.json` con
-   los cursos, sus `course_id`, el rol en cada uno y la forma de la bandeja de mensajes.
-4. **Cargar los datos reales** en `CLAUDE.md` (tabla de cursos) y en `CONOCIDAS` de
-   `scripts/_campus.js`. A partir de acá la celda deja de estar a ciegas.
-5. **Escribir los scrapers contra el DOM real** que devolvió el paso 3:
-   - `leer-mensajes.js` — bandeja e hilos (lectura)
-   - `listar-tareas.js` / `entregas-tarea.js` — qué hay para corregir
-   - `seguimiento.js` — quién entregó y quién no, por unidad
-   - `auditar-aula.js` — links rotos, faltantes, fechas
-   - `responder-mensaje.js` y `cargar-nota.js` — **escritura, detrás de confirmación**
+## Lo que falta — próximos pasos
 
-## Por qué los scrapers no están escritos todavía
+Ya tenemos el DOM real, así que estos se escriben contra selectores verificados,
+no inventados:
 
-A propósito. Escribir un scraper contra un DOM que nunca vi produce selectores
-inventados que fallan en silencio. El paso 3 sale a buscar la realidad —cursos, ids,
-estructura de la bandeja— y recién con eso en la mano se escribe el resto sin adivinar.
-
-La bandeja de mensajes de Moodle es una app JS (message drawer), así que ahí en
-particular hay que ver el DOM renderizado antes de tocar una línea.
+1. **`leer-mensajes.js`** — la mensajería es el `message-drawer` de Moodle. Regiones
+   confirmadas: `view-overview-messages`, `view-conversation`, `last-message`,
+   `last-message-date`, `contact-request-count`. Al 2026-08-21: **1 conversación**.
+2. **`entregas-tarea.js`** — estado por `assign`. Los 7 cmid están en `CLAUDE.md`
+   (4660, 4688, 4712, 4734, 4755, 4765, 4764).
+3. **`seguimiento.js`** — quién entregó y quién no, unidad por unidad.
+4. **`auditar-aula.js`** — links rotos, faltantes, fechas.
+5. **Escritura, detrás de confirmación explícita:** `responder-mensaje.js`,
+   `cargar-nota.js`.
 
 ## Decisiones tomadas
 
-- **2026-08-21 — Playwright, no API REST.** Verificado que FRM no tiene el web service
-  móvil habilitado (`enablemobilewebservice: 0` en los dos campus de Mendoza), así que
-  la skill `tup-campus-navigator` no sirve acá aunque su código sí sea portable.
-  Detalle y evidencia en `CLAUDE.md`.
-- **2026-08-21 — Repo aparte.** La celda vive en `trabajo/frm/pre/` con su propio git,
-  fuera del repo `tupad/`. Otra institución, otras credenciales, otro historial.
-- **2026-08-21 — Datos de menores.** `datos/` y `evidencia/` nunca se versionan y nada
-  personal sale de la carpeta sin confirmación explícita.
+- **2026-08-21 — Playwright, no API REST.** FRM no tiene el web service móvil
+  (`enablemobilewebservice: 0` en los dos campus de Mendoza). Evidencia en `CLAUDE.md`.
+- **2026-08-21 — Repo aparte** en `trabajo/frm/pre/`, fuera de `tupad/`.
+- **2026-08-21 — Login manual, sin contraseña guardada.** `campusingresantes` es un
+  Moodle separado: la credencial de `campusvirtual.frm` no sirve acá. En vez de
+  buscarla, se persiste la cookie. Cero riesgo de bloqueo de cuenta.
+- **2026-08-21 — Datos de menores.** `datos/` y `evidencia/` nunca se versionan.
 
 ## Hallazgos abiertos
 
-_(ninguno todavía — la celda no entró al campus)_
+| Fecha | Qué | Criticidad | Estado |
+| --- | --- | :-: | :-: |
+| 2026-08-21 | `_probar-dom.js` volcó ~174 mails de aspirantes por indexar columnas por posición. Archivo purgado, script corregido, reglas escritas en `CLAUDE.md`. | alta | resuelto |
+| 2026-08-21 | El bug de reintentos de login sigue vivo en `tupad/coordinacion/prog-4/_carga/_campus.js`, de donde se copió el patrón. Reintenta credenciales inválidas y acerca el bloqueo de cuenta. | media | **abierto** |
+| 2026-08-21 | Sección `Encuentros Sincrónicos` del aula 589 está VACÍA. Sin verificar si es intencional. | baja | **abierto** |

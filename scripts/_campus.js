@@ -34,7 +34,7 @@ if (process.env.M_CURSO && (!Number.isInteger(CURSO) || CURSO <= 0)) {
 // Aulas conocidas, para que el log diga de cuál se trata y no sólo un número.
 // Se completa a medida que `explorar.js` vaya descubriendo los cursos reales.
 const CONOCIDAS = {
-  // 'campusingresantes.frm.utn.edu.ar|NN': 'CVI NN — <materia del pre>',
+  'campusingresantes.frm.utn.edu.ar|589': 'CVI 589 — Pre TUP 2027 - Marzo (rol docente)',
 };
 
 // Regla de la celda: nunca hablar de "el aula" a secas. Siempre host + course.
@@ -52,11 +52,15 @@ function describir() {
 }
 
 // Credenciales por referencia: se leen de process.env y NUNCA se imprimen.
-function credenciales() {
+// Con `obligatorias:false` devuelve null en vez de cortar, para que el llamador
+// pueda ofrecer el camino del login manual.
+function credenciales({ obligatorias = true } = {}) {
   const u = process.env.CVI_USER || process.env.M_USER;
   const p = process.env.CVI_PASSWORD || process.env.M_PASS;
   if (!u || !p) {
-    console.error('Faltan CVI_USER / CVI_PASSWORD. Copiá .env.example a .env y completalos.');
+    if (!obligatorias) return null;
+    console.error('Faltan CVI_USER / CVI_PASSWORD en el .env.');
+    console.error('Si no querés guardar la contraseña: node scripts/login-manual.js');
     process.exit(2);
   }
   return { usuario: u, clave: p };
@@ -64,8 +68,8 @@ function credenciales() {
 
 // Contexto nuevo. Timeouts generosos: los campus UTN responden lento y con el default
 // de Playwright (30 s) se cae hasta el login. No bajar de 90 s.
-async function nuevoContexto(browser, { usarSesion = true, timeout = 90000 } = {}) {
-  const opts = {};
+async function nuevoContexto(browser, { usarSesion = true, timeout = 90000, ...extra } = {}) {
+  const opts = { ...extra };
   if (usarSesion && fs.existsSync(STORAGE)) opts.storageState = STORAGE;
   const ctx = await browser.newContext(opts);
   ctx.setDefaultTimeout(timeout);
@@ -77,7 +81,17 @@ async function estaLogueado(page) {
   return (await page.locator('a[href*="/login/logout.php"], #user-menu-toggle, .usermenu').count()) > 0;
 }
 
-// Login por formulario, con reintentos. Devuelve true/false; NO imprime la contraseña.
+// Login por formulario. Devuelve true/false; NO imprime la contraseña.
+//
+// ⚠ REGLA DE ORO DE LOS REINTENTOS (bug encontrado el 2026-08-21, heredado de
+// `_carga/_campus.js` de prog-4): sólo se reintenta ante fallas TRANSITORIAS —red,
+// timeout, campus caído—. Si Moodle contesta "Acceso inválido", la credencial está
+// mal y repetirla NO la va a arreglar: lo único que hace es gastar el presupuesto
+// de intentos antes del bloqueo de cuenta (Moodle bloquea a los ~10 fallidos por
+// defecto). Ese día se quemaron 3 intentos al pedo contra el Campus Ingresantes.
+// Ante credenciales inválidas: cortar de una y avisar.
+const CREDENCIAL_MAL = /acceso inv[áa]lido|invalid login|nombre de usuario o contrase/i;
+
 async function ingresar(page, { intentos = 3 } = {}) {
   const { usuario, clave } = credenciales();
   for (let i = 1; i <= intentos; i++) {
@@ -92,14 +106,23 @@ async function ingresar(page, { intentos = 3 } = {}) {
         console.log(`login OK (usuario ${usuario})\n`);
         return true;
       }
-      const aviso = await page.locator('.loginerrors, .alert-danger').first()
-        .textContent().catch(() => null);
+      const aviso = (await page.locator('.loginerrors, .alert-danger').first()
+        .textContent().catch(() => '') || '').trim();
+
+      if (CREDENCIAL_MAL.test(aviso)) {
+        console.error(`\n  ✗ El campus rechazó la credencial: "${aviso.slice(0, 120)}"`);
+        console.error(`    Usuario probado: ${usuario}`);
+        console.error('    CORTO ACÁ a propósito: reintentar la misma credencial no la arregla');
+        console.error('    y acerca el bloqueo de la cuenta. Revisá usuario/contraseña.');
+        return false;
+      }
+
       console.error(`  login intento ${i}/${intentos}: no entró -> ${page.url()}`
-        + (aviso ? ` | ${aviso.trim().slice(0, 120)}` : ''));
+        + (aviso ? ` | ${aviso.slice(0, 120)}` : ''));
     } catch (e) {
       console.error(`  login intento ${i}/${intentos} falló: ${e.message.split('\n')[0]}`);
     }
-    await page.waitForTimeout(3000);
+    if (i < intentos) await page.waitForTimeout(3000);
   }
   return false;
 }
@@ -117,12 +140,25 @@ async function sesion({ headless = true } = {}) {
     return { browser, ctx, page, BASE, CURSO };
   }
 
+  // Sin sesión válida. Si no hay credenciales en el .env, NO adivinamos: mandamos al
+  // login manual. Es el camino sano en `campusingresantes`, donde la credencial de
+  // `campusvirtual.frm` no sirve y cada intento fallido acerca el bloqueo de cuenta.
   await ctx.close();
+  if (!credenciales({ obligatorias: false })) {
+    await browser.close();
+    throw new Error(
+      'No hay sesión guardada ni credenciales en el .env.\n'
+      + '  Logueate vos una vez y la celda se queda con la sesión:\n'
+      + '      node scripts/login-manual.js');
+  }
+
   ctx = await nuevoContexto(browser, { usarSesion: false });
   page = await ctx.newPage();
   if (!await ingresar(page)) {
     await browser.close();
-    throw new Error('No pude entrar al campus. Revisá CVI_USER / CVI_PASSWORD en .env.');
+    throw new Error(
+      'No pude entrar con las credenciales del .env.\n'
+      + '  Alternativa sin riesgo de bloqueo: node scripts/login-manual.js');
   }
   await guardarSesion(ctx);
   return { browser, ctx, page, BASE, CURSO };

@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "login": "node scripts/login.js",
-    "explorar": "node scripts/explorar.js"
+    "explorar": "node scripts/explorar.js",
+    "login-manual": "node scripts/login-manual.js"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
